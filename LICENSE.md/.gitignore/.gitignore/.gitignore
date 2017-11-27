@@ -1,0 +1,653 @@
+# Maisha Choudhury
+# CS 3305
+# 11/15/2017
+# Project
+
+# Description: The user can either play Tic Tac Toe or Hangman.
+
+.data
+intro:		.asciiz		"Hello! Welcome to the mini arcade. You can either play Tic Tac Toe or Hangman.\n"
+intro2:		.asciiz 	"To win Tic Tac Toe, you must be able to get three of your pieces in a row, column, or diagonal.\n"
+intro3: 	.asciiz		"To win Hangman you must guess the word given blank spaces. You only have 6 chances to make an incorrect guess.\n"
+intro4:		.asciiz		"Good luck!!\n"
+chooseGame:	.asciiz		"Choose a game: [1]Tic Tac Toe\t [2]Hangman "
+
+# tictactoe data
+board: 		.asciiz 	"           \n    |   |   \n ---+---+---\n    |   |   \n ---+---+---\n    |   |   \n"
+boardVal: 	.asciiz 	"           \n  1 | 2 | 3 \n ---+---+---\n  4 | 5 | 6 \n ---+---+---\n  7 | 8 | 9 \n"
+x: 		.asciiz 	"X"
+o: 		.asciiz 	"O"
+winnerPrompt: 	.asciiz 	"\nPlayer   Won! Congrats!! \n"
+tie: 		.asciiz 	 "\nTie Game!"
+gameMenu: 	.asciiz 	"\nChoose an option:\n[1] Play another game\t[2] Quit "
+emptyByte: 	.byte 		' '
+explainTicTacToe:.asciiz	"You are about to play Tic Tac Toe. The board numbering is as follows below. Choose a square to play your turn. Whoever has 3 in a row, column, or diagonal wins the game\n"
+explainTicTacToe2: .asciiz	"You can only enter a digit between 1 and 9. Player X and Player O will alternate turns until the first person makes a win or until all moves have been made and there is a tie.\n"
+explainTicTacToe3: .asciiz	"Good luck!!\n"
+zero:		.word		0
+movePrompt: 	.asciiz 	"Player   make a move (choose a square 1-9):"
+invalidMove: 	.asciiz 	"This is an invalid move.\n"
+occupiedSpace: 	.asciiz 	"This space is already occupied.\n"
+numRoundsPrompt: .asciiz 	"Round Number: "
+newline:	.asciiz		"\n"
+
+# hangman data
+explainHangman:	.asciiz 	"You are about to play Hangman. You must guess the word given blank spaces. Each time you guess a letter correctly, it will replace a blank.\n"
+explainHangman2:.asciiz		"You can make a maximum of 6 incorrect guesses. If you can guess the word before completing the hangman figure, you will win the game!!\n"
+explainHangman3:.asciiz		"Good luck!!\n"
+guessWordPrompt: .asciiz	 "\nGuess the word: "
+guessPrompt:	.asciiz		"\nEnter guess "
+dash:		.asciiz		" - "
+winnerPrompt2: 	.asciiz		"\nCongratulations, you win!!"
+loserPrompt2: 	.asciiz		"\nOh no, you lost!!\nThe word was: "
+blank: 		.asciiz		"_ "
+space:		.asciiz		" "
+hangmanArray: 	.word		option0, option1, option2, option3, option4, option5, option6, option7, option8
+option0:	.asciiz  	"cache"
+option1:	.asciiz		"computer"
+option2: 	.asciiz		"register"
+option3: 	.asciiz		"stack"
+option4: 	.asciiz		"latency"
+option5:	.asciiz		"boolean"
+option6:	.asciiz		"interface"
+option7:	.asciiz		"compiler"
+option8:	.asciiz		"assembler"	
+wrongArrray:	.word 		wrong1, wrong2, wrong3, wrong4, wrong5, wrong6	
+wrong1:		.asciiz 	"\n----.\n|  o\n|\n|"
+wrong2:		.asciiz 	"\n----.\n|  o\n|  |\n|"
+wrong3:		.asciiz 	"\n----.\n|  o\n| /|\n|"
+wrong4:		.asciiz 	"\n----.\n|  o\n| /|\\\n|"
+wrong5:		.asciiz 	"\n----.\n|  o\n| /|\\\n| /"
+wrong6:		.asciiz 	"\n----.\n|  o\n| /|\\\n| / \\"
+goodGuess:	.asciiz		"Good guess!\n"
+
+.text
+arcadeIntro:
+	# display intro
+	li $v0,4
+	la $a0, intro
+	syscall
+	li $v0,4
+	la $a0, intro2
+	syscall
+	li $v0,4
+	la $a0, intro3
+	syscall
+	li $v0,4
+	la $a0, intro4
+	syscall
+
+
+main:	
+	# ask user which game he wants to play
+	li $v0,4
+	la $a0, chooseGame
+	syscall
+			
+	# read in user's choice
+	li $v0,5
+	syscall
+	bne $v0, 1, hangman	# if user wants to play hangman, branch to hangman, otherwise continue to play tictactoe
+
+tictactoe:	
+
+	# display grid explanations and how to play the game
+	li $v0, 4
+	la $a0, explainTicTacToe
+	syscall	
+	
+	li $v0, 4
+	la $a0, explainTicTacToe2
+	syscall	
+	
+	li $v0, 4
+	la $a0, explainTicTacToe3
+	syscall		
+	
+	# display how board will look
+	li $v0, 4
+	la $a0, boardVal
+	syscall	
+		
+	lw $s0, zero	# s0 = 0 (counter holds whether it is player X or O's turn
+	lw $s4, zero	# s4 = 0 (counter holds number of moves that have been made)
+	lw $t1, zero	# t1 = 0 (will = 3 if square1 is X or 4 if it is O)
+	lw $t2, zero	# t2 = 0 (will = 3 if square2 is X or 4 if it is O)
+	lw $t3, zero	# t3 = 0 (will = 3 if square3 is X or 4 if it is O)
+	lw $t4, zero	# t4 = 0 (will = 3 if square4 is X or 4 if it is O)
+	lw $t5, zero	# t5 = 0 (will = 3 if square5 is X or 4 if it is O)
+	lw $t6, zero	# t6 = 0 (will = 3 if square6 is X or 4 if it is O)
+	lw $t7, zero	# t7 = 0 (will = 3 if square7 is X or 4 if it is O)
+	lw $t8, zero	# t8 = 0 (will = 3 if square8 is X or 4 if it is O)
+	lw $t9, zero	# t9 = 0 (will = 3 if square9 is X or 4 if it is O)							
+				
+	la $s1, movePrompt	# $s1 holds the prompt for when asking for player's move
+	la $s2, winnerPrompt	# $s2 holds prompt for which player wins
+	la $s5, board		# $s5 holds board
+
+	# placement for tic tac toe board and player's moves
+	lb $a2, emptyByte
+	sb $a2, 14($s5)
+	sb $a2, 18($s5)
+	sb $a2, 22($s5)
+	sb $a2, 40($s5)
+	sb $a2, 44($s5)
+	sb $a2, 48($s5)
+	sb $a2, 66($s5)
+	sb $a2, 70($s5)
+	sb $a2, 74($s5)
+
+	displayBoard:
+		# print board on screen
+		li $v0, 4
+		la $a0, board
+		syscall
+	
+		beq $s4, 9, tieGame	# if s4 = 9 (all moves have been made and no one won), branch to tie function
+		add $s4, $s4, 1		# otherwise increment counter for number of moves
+		
+		# display number of rounds prompt
+		la $a0, numRoundsPrompt
+		li $v0, 4 
+		syscall
+
+		# display number of rounds
+		move $a0, $s4 		# move number of guesses to argument register
+		li $v0, 1 
+		syscall
+		move $s4, $a0		# move back to saved register
+	
+		# start new line
+		la $a0, newline
+		li $v0, 4 
+		syscall
+		
+		li $t0, 2
+		div $s0, $t0
+		mfhi $t0		# stores remainder to make sure less than max number of moves have been made by each player
+		addi $s0, $s0, 1	# incremement $s0 (counter for how many times each player has made a move)
+		bne $t0, $zero, playerO	# branch to playerO if $t0 does not equal 0 (next player's turn)
+		# player X's turn
+		lb $a2, x		# load x into $a2
+		sb $a2, 7($s1)		# stores X into prompt for which player is about to move
+		sb $a2, 8($s2)		# stores X into prompt for when Player X wins
+		j playersMove		# jump to playersMove
+	playerO:
+		lb $a2, o		# load o into $a2
+		sb $a2, 7($s1)		# Stores O into prompt for which player is about to move
+		sb $a2, 8($s2)		# Stores O into prompt for when Player 0 wins
+
+	playersMove:
+		# display prompt for user's move
+		li $v0, 4		 
+		la $a0, movePrompt
+		syscall
+
+		li $v0, 5		# read integer user enters
+		syscall
+		move $s6, $v0		# move contents of user's play into $v0	
+
+		beq $s6, 1, square1	# if user enters 1
+		beq $s6, 2, square2	# if user enters 2
+		beq $s6, 3, square3	# if user enters 3
+		beq $s6, 4, square4	# if user enters 4
+		beq $s6, 5, square5	# if user enters 5
+		beq $s6, 6, square6	# if user enters 6
+		beq $s6, 7, square7	# if user enters 7
+		beq $s6, 8, square8	# if user enters 8
+		beq $s6, 9, square9	# if user enters 9
+		j isInvalid
+		
+
+	square1:
+		bne $t1, $zero, isTaken	# if square 1 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O1	# if it is player 0's turn branch to 01
+		# player X's turn
+		li $t1, 3		# set value square1 to 3
+		sb $a2, 14($s5)		# place X on square 1
+		j isWin			# check if there is a victory
+
+		O1:
+			li $t1, 4	# set value of square1 to 4
+			sb $a2, 14($s5)	# place O on square 1
+			j isWin		# check if there is a victory
+
+	square2:
+		bne $t2, $zero, isTaken	# if square 2 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O2	# if it is player 0's turn branch to O2
+		# player X's turn
+		li $t2, 3		# set value of square2 to 3
+		sb $a2, 18($s5)		# place X on square 2
+		j isWin			# check if there is a victory
+
+		O2:
+			li $t2, 4	# set value of square2 to 4
+			sb $a2, 18($s5) # place X on square 2
+			j isWin		# check if there is a victory
+	square3:	
+		bne $t3, $zero, isTaken	# if square 3 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O3	# if it is player 0's turn branch to O3
+		# player X's turn
+		li $t3, 3		# set value of square3 to 3
+		sb $a2, 22($s5) 	# place X on square 3
+		j isWin 		# check if there is a victory
+
+		O3:
+			li $t3, 4	# set value of square3 to 4
+			sb $a2, 22($s5)	# place O on square 3
+			j isWin		# check if there is a victory
+
+	square4:
+		bne $t4, $zero, isTaken	# if square 4 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O4	# if it is player 0's turn branch to 04
+		# player X's turn
+		li $t4, 3		# set value of square4 to 3
+		sb $a2, 40($s5)		# place X on square 4
+		j isWin			# check if there is a victory
+
+		O4:
+			li $t4, 4	# set value of square4 to 4
+			sb $a2, 40($s5)	# place O on square 4
+			j isWin		# check if there is a victory
+
+	square5:
+		bne $t5, $zero, isTaken	# if square 5 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O5	# if it is player 0's turn branch to O5
+		# player X's turn
+		li $t5, 3		# set value of square5 to 3
+		sb $a2, 44($s5)		# place X on square 5
+		j isWin			# check if there is a victory
+
+		O5:
+			li $t5, 4	# set value of square5 to 4
+			sb $a2, 44($s5)	# place O on square 5
+			j isWin		# check if there is a victory
+
+	square6:
+		bne $t6, $zero, isTaken	# if square 6 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O6	# if it is player 0's turn branch to O6
+		# player X's turn
+		li $t6, 3		# set value of square6 to 3
+		sb $a2, 48($s5)		# place X on square 6
+		j isWin			# check if there is a victory
+
+		O6:
+			li $t6, 4	# set value of square6 to 4
+			sb $a2, 48($s5)	# place O on square 6
+			j isWin  	# check if there is a victory
+
+	square7:
+		bne $t7, $zero, isTaken	# if square 7 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O7	# if it is player 0's turn branch to O7
+		# player X's turn
+		li $t7, 3		# set value of square7 to 3
+		sb $a2, 66($s5)		# place X on square 7
+		j isWin			# check if there is a victory
+
+		O7:
+			li $t7, 4	# set value of square7 to 4
+			sb $a2, 66($s5)	# place O on square 7
+			j isWin		# check if there is a victory
+	
+	square8:
+		bne $t8, $zero, isTaken	# if square 8 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O8	# if it is player 0's turn branch to O8
+		# player X's turn
+		li $t8, 3		# set value of square8 to 3
+		sb $a2, 70($s5)		# place X on square 8
+		j isWin			# check if there is a victory
+
+		O8:
+			li $t8, 4	# set value of square8 to 4
+			sb $a2, 70($s5)	# place O on square 8
+			j isWin		# check if there is a victory
+
+	square9:
+		bne $t9, $zero, isTaken	# if square 9 is not empty, branch to isTaken to tell player that space is already taken
+		bne $t0, $zero, O9	# if it is player 0's turn branch to O9
+		# player X's turn
+		li $t9, 3		# set value of square9 to 3
+		sb $a2, 74($s5)		# place X on square 9
+		j isWin			# check if there is a victory
+
+		O9:
+			li $t9, 4	# set value of square9 to 4
+			sb $a2, 74($s5)	# place O on square 9
+			j isWin		# check if there is a victory
+
+	isTaken:
+		# display that the square is an occupied space
+		li $v0, 4
+		la $a0, occupiedSpace
+		syscall
+		j playersMove
+	isInvalid:
+		# if player did not enter a digit between 1 and 9, then it is am invalid move
+		li $v0, 4
+		la $a0, invalidMove
+		syscall
+		j playersMove	# jump to playersMove
+	isWin:
+		
+		# if player has 3 spots on first column, player won
+		and $s3, $t1, $t4
+		and $s3, $s3, $t7
+		bne $s3, $zero, winner
+
+		# if player has 3 spots on second column, player won
+		and $s3, $t2, $t5
+		and $s3, $s3, $t8
+		bne $s3, $zero, winner
+			
+		# if player has 3 spots on third column, player won
+		and $s3, $t3, $t6
+		and $s3, $s3, $t9
+		bne $s3, $zero, winner
+		
+		# if player has 3 in a row on the first row, player won
+		and $s3, $t1, $t2
+		and $s3, $s3, $t3
+		bne $s3, $zero, winner
+
+		# if player has 3 in a row on the second row, player won
+		and $s3, $t4, $t5
+		and $s3, $s3, $t6
+		bne $s3, $zero, winner
+
+		# if player has 3 in a row on third row, player won
+		and $s3, $t7, $t8
+		and $s3, $s3, $t9
+		bne $s3, $zero, winner
+
+		# if player has 3 squares on diagonal (square 1,5, and 9), player won
+		and $s3, $t1, $t5
+		and $s3, $s3, $t9
+		bne $s3,$zero, winner
+
+		# if player has 3 squares on diagonal (square 3,5, and 7), player won
+		and $s3, $t7, $t5
+		and $s3, $s3, $t3
+		bne $s3, $zero, winner
+		j displayBoard
+
+	winner:
+		# display board
+		li $v0, 4
+		la $a0, board
+		syscall
+
+		# display which player won
+		li $v0, 4
+		la $a0, winnerPrompt
+		syscall
+		j newGame	# jump to ask user game choices
+
+	tieGame:
+		# display that game was a tie
+		li $v0, 4
+		la $a0, tie
+		syscall 
+		
+	newGame:
+		#display options for if user wants to play again
+		li $v0,4
+		la $a0, gameMenu
+		syscall
+			
+		# read in user's choice
+		li $v0,5
+		syscall
+		bne $v0, 2, main	# if user wants to play another game, branch to main
+
+		# end the program
+		li $v0, 10
+		syscall
+
+# end tictactoe game
+
+
+hangman:
+	# explain how to play hangman
+	li $v0, 4
+	la $a0, explainHangman
+	syscall	
+	
+	li $v0, 4
+	la $a0, explainHangman2
+	syscall	
+	
+	li $v0, 4
+	la $a0, explainHangman3
+	syscall	
+	
+	# initialize registers back to zero if game is played again
+	xor $s0, $s0, $s0	# $s0 = equals 0 if character user entered is not found(miss) and equals 1 if found
+	xor $s1, $s1, $s1	# $s1 = blank counter
+	xor $s2, $s2, $s2 	# $s2 = user's character guess
+	xor $s3, $s3, $s3	# $s3 = the number of misses
+	xor $s4, $s4, $s4 	# $s4 = the current word address
+	xor $s5, $s5, $s5	# $s5 = the number of guesses
+	
+	# initialize other used registers back to zero
+	xor $v0, $v0, $v0
+	xor $a0, $a0, $a0
+	xor $a1, $a1, $a1
+	xor $t3, $t3, $t3
+	li $t6, 1	# used for increment
+	
+	jal wordChosen 		# returns $s2 which contains the address of the chosen word
+	jal fillBlanks		# displays blanks needed for user to guess word
+	loopMain:		
+		jal userGuess 	# saves character user guessed into $s2
+		jal fillBlanks 	# displays blanks and characters that should be displayed appropiately
+		bnez $s0, userGuessMatch
+		jal addIncorrectGuess
+		userGuessMatch: # user's guess was correct so do not need to increment incorrect misses/ draw more body parts
+	j loopMain
+	# player won, display that user wo
+	playerWins: 
+		la $a0, winnerPrompt2
+		li $v0, 4 
+		syscall 
+		j playAgain
+	# player lost
+	playerLoses: 
+		# display player lost
+		la $a0, loserPrompt2
+		li $v0, 4
+		syscall
+		# display correct word
+		la $a0, ($s4)
+		li $v0, 4 
+		syscall 
+	# display options for whether user wants to play another game
+	playAgain:	
+		li $v0,4
+		la $a0, gameMenu
+		syscall
+		
+		# read in user's choice
+		li $v0,5
+		syscall
+		bne $v0, 2, main	# if user wants to play another game, branch to main
+
+		# otherwise end the game/program
+		li $v0, 10 
+		syscall
+	
+	wordChosen: 
+		# push
+		addi $sp, $sp, -4 	# creates space for $ra
+		sw $ra, 0($sp)		# stores $ra
+
+		# gets a random number to choose word
+		li $a0, 9 		# upperbound of return for random word that is chosen from array of words
+		jal getRandomNumber	# $a0 is the upperbound and $v0 holds the random number/index
+	
+		#  multiplier for the memory location
+		sll $v0, $v0,2		# gives the memory offset 
+		lw $s4, hangmanArray($v0) # loads address into $s4
+		
+		# pop
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
+		jr $ra
+
+	fillBlanks: 
+		# push
+		addi $sp, $sp, -4 	
+		sw $ra, 0($sp)
+
+		xor $s1, $s1, $s1 	# initialize counter for number of blanks to 0 
+		xor $s0, $s0, $s0 	# initialize register that checks whether character was found to 0
+		move $t3, $s4  		# move current word address into temporary register
+	
+		# display hangman word user needs to guess
+		la $a0, guessWordPrompt 	
+		li $v0, 4 			
+		syscall
+	
+		# read character
+		loopBlanks: 		
+			li $t1, -32			# value to change character to capital letter
+			lb $t2, 0($t3) 			# load character from the random chosen word into $t2
+			beqz $t2, endLoopBlanks 	# if it is null, exit the loop
+			blt $t2, 91, displayChar 	# if character in the word is already capital, display it
+			beq $t2, $s2, characterFound 	# else if the character in the word equals the character the player guessed
+			add $s1, $s1, $t6		# increment the counter for blanks
+			la $a0, blank 			# load a blank "_ "
+			xor $s0, $s0, 0 		# character was not found
+			j nextChar 			# jump to look at next character
+				
+			characterFound:	
+				li $s0, 1 		# character was found
+				add $t2, $t2, $t1	# update character user entered to capital letter
+				sb $t2, 0($t3)		# update character in the word to a capital letter		
+			displayChar:		
+				move $a0, $t2		# move character into argument field
+				li $v0, 11 		# display character
+				syscall
+				la $a0, space 		# load a space 
+			nextChar:	
+				li $v0, 4 		# display string which will wither be "_" or " "
+				syscall 		
+				add $t3, $t3, $t6 	# increment temporary word address to look at next character
+				j loopBlanks 		# loop again
+					
+		endLoopBlanks: 
+		jal checkVictory 
+		# pop
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
+		jr $ra
+
+	checkVictory:
+		# push
+		addi $sp, $sp, -4 		# create space for $ra
+		sw $ra, 0($sp)			# store $ra 
+		bne $s1, $zero, notWin		# if there are still blanks
+		# if there are no more blanks, player won
+		j playerWins 
+		notWin:				# exit if no win
+	
+		# pop
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
+		jr $ra
+
+	addIncorrectGuess:
+		# push
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+	
+		mul $t2, $s3, 4 	# multiply the number of misses by four for the correct address in array
+		lw $a0, wrongArrray($t2)# add parts of hangman that matches number of misses
+		li $v0, 4 		
+		syscall
+	
+		add $s3, $s3, $t6 	# incrememnt the number of misses
+	
+		bne $s3, 6, moreGuesses	# if number of misses is not 6, player can continue playing
+		j playerLoses
+		moreGuesses: 		
+		
+		# pop
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
+		jr $ra
+
+	userGuess:
+		# push
+		addi $sp, $sp, -4
+		sw $ra, 0($sp)
+		
+		# ask user to make a guess
+		la $a0, guessPrompt
+		li $v0, 4 
+		syscall
+		
+		
+		# display number of guesses
+		add $s5, $s5, $t6 	# increment number of guesses
+		move $a0, $s5 		# move number of guesses to argument register
+		li $v0, 1 
+		syscall
+		move $s5, $a0		# move back to saved register
+	
+		# display dash
+		la $a0, dash
+		li $v0, 4 #print string service
+		syscall
+	
+		# read guess user made
+		li $v0, 12 
+		syscall
+	
+		# move user's guess to $v0 
+		move $s2, $v0
+		li $t1, 32		# holds value to make character lowercase
+		blt $s2, 65, userGuess	# if not a letter ask user for another guess
+		bge $s2, 123, userGuess	# if not a letter ask user for another guess
+		beq $s2, 91, userGuess	# if not a letter ask user for another guess
+		beq $s2, 92, userGuess	# if not a letter ask user for another guess
+		beq $s2, 93, userGuess	# if not a letter ask user for another guess
+		beq $s2, 94, userGuess	# if not a letter ask user for another guess
+		beq $s2, 95, userGuess	# if not a letter ask user for another guess
+		beq $s2, 96, userGuess	# if not a letter ask user for another guess
+		# check if character is a lowercase	
+		bge $s2, 91, charIsLower 	# keep character the same if character user entered is a lowercase letter
+		add $s2, $s2, $t1		# otherwise add 32 to character to make it a lowercase
+	charIsLower: # otherwise do nothing
+
+		# pop
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
+		jr $ra
+	
+	# $a0 is upper bound, returns $v0 which is the random number in range 1-9
+	getRandomNumber: 
+		# push
+		addi $sp, $sp, -8
+		sw $ra, 0($sp)	
+		sw $a0, 4($sp) # saves the upper bound argument for later
+		# seed the random number generator and get the time
+		li	$v0, 30		# get time in milliseconds (as a 64-bit value)
+		syscall
+		move	$t2, $a0	# save the lower 32-bits of time
+		# seed the random generator once
+		li	$a0, 1		# random generator id (will be used later)
+		move 	$a1, $t2	# seed from time
+		li	$v0, 40		# seed random number generator syscall
+		syscall
+		# seeding done, generate random number, store in $a0
+		li	$a0, 1		# random generator id
+		lw 	$a1, 4($sp)	# upper bound from the stack
+		li	$v0, 42		# random int range
+		syscall
+		# $a0 now holds the random number
+		move 	$v0, $a0 #move to return location	
+		# pop
+		lw $ra, 0($sp)
+		addi $sp, $sp, 8
+		jr $ra
+# end of hangman game
